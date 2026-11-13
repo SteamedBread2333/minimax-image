@@ -9,7 +9,30 @@ import {
   type HistoryListItem,
   type HistoryRecord,
 } from "./historyDb";
+import type { StoredReference } from "./historyDb";
 import type { GenerationParams } from "./types";
+
+export type EditRestorePayload = {
+  files: File[];
+  imageUrls: string;
+};
+
+function buildEditRestore(record: HistoryRecord): EditRestorePayload | undefined {
+  if (record.mode !== "edit" || !record.referenceImages?.length) return undefined;
+  const files: File[] = [];
+  const urlOnly: string[] = [];
+  for (const ref of record.referenceImages) {
+    if (ref.blob) {
+      const name = ref.fileName || `reference-${ref.index}.jpg`;
+      files.push(new File([ref.blob], name, { type: ref.blob.type || "image/jpeg" }));
+    } else if (ref.sourceUrl) {
+      urlOnly.push(ref.sourceUrl);
+    } else if (ref.remoteUrl) {
+      urlOnly.push(ref.remoteUrl);
+    }
+  }
+  return { files, imageUrls: urlOnly.join("\n") };
+}
 import { Button } from "./components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import {
@@ -23,7 +46,11 @@ import { ScrollArea } from "./components/ui/scroll-area";
 import { cn } from "./lib/utils";
 
 type Props = {
-  onRestore: (mode: "generate" | "edit", params: GenerationParams) => void;
+  onRestore: (
+    mode: "generate" | "edit",
+    params: GenerationParams,
+    edit?: EditRestorePayload
+  ) => void;
 };
 
 function formatTime(ts: number) {
@@ -40,6 +67,7 @@ export function HistorySidebar({ onRestore }: Props) {
   const [list, setList] = useState<HistoryListItem[]>([]);
   const [modalRecord, setModalRecord] = useState<HistoryRecord | null>(null);
   const [modalUrls, setModalUrls] = useState<string[]>([]);
+  const [modalRefUrls, setModalRefUrls] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadList = useCallback(async () => {
@@ -67,6 +95,7 @@ export function HistorySidebar({ onRestore }: Props) {
   useEffect(() => {
     if (!modalRecord) {
       setModalUrls([]);
+      setModalRefUrls([]);
       return;
     }
     const toRevoke: string[] = [];
@@ -78,7 +107,16 @@ export function HistorySidebar({ onRestore }: Props) {
       }
       return img.remoteUrl ?? "";
     });
+    const refUrls = (modalRecord.referenceImages ?? []).map((ref) => {
+      if (ref.blob) {
+        const u = blobToObjectUrl(ref.blob);
+        toRevoke.push(u);
+        return u;
+      }
+      return ref.sourceUrl ?? ref.remoteUrl ?? "";
+    });
     setModalUrls(urls);
+    setModalRefUrls(refUrls);
     return () => toRevoke.forEach((u) => URL.revokeObjectURL(u));
   }, [modalRecord]);
 
@@ -144,6 +182,7 @@ export function HistorySidebar({ onRestore }: Props) {
       <HistoryDetailDialog
         record={modalRecord}
         imageUrls={modalUrls}
+        referenceUrls={modalRefUrls}
         open={Boolean(modalRecord)}
         onOpenChange={(open) => !open && setModalRecord(null)}
         onRestore={onRestore}
@@ -210,7 +249,11 @@ function HistoryListRow({
           <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-neutral-900">
             {item.prompt || "（无描述）"}
           </p>
-          <span className="mt-0.5 text-[10px] text-neutral-500">{item.imageCount} 张</span>
+          <span className="mt-0.5 text-[10px] text-neutral-500">
+            {item.mode === "edit" && item.referenceCount
+              ? `参考 ${item.referenceCount} · 结果 ${item.imageCount}`
+              : `${item.imageCount} 张`}
+          </span>
         </span>
       </button>
       <button
@@ -226,9 +269,45 @@ function HistoryListRow({
   );
 }
 
+function ReferenceThumb({
+  refItem,
+  src,
+}: {
+  refItem: StoredReference;
+  src: string;
+}) {
+  const link = refItem.sourceUrl ?? refItem.remoteUrl;
+  return (
+    <figure className="overflow-hidden rounded-md border border-neutral-200">
+      {src ? (
+        <a href={src} target="_blank" rel="noreferrer">
+          <img src={src} alt="" className="max-h-40 w-full object-contain bg-neutral-50" />
+        </a>
+      ) : (
+        <div className="flex max-h-40 items-center justify-center bg-neutral-50 p-4 text-xs text-neutral-500">
+          无法预览
+        </div>
+      )}
+      <figcaption className="space-y-0.5 px-2 py-2 text-[11px] text-neutral-500">
+        <div className="font-medium text-neutral-700">图 {refItem.index}</div>
+        {refItem.fileName && <div className="truncate">{refItem.fileName}</div>}
+        {link && (
+          <a href={link} target="_blank" rel="noreferrer" className="block truncate text-blue-600">
+            {link}
+          </a>
+        )}
+        {!refItem.blob && link && (
+          <span className="text-[10px] text-amber-700">仅保存链接，未缓存到本机</span>
+        )}
+      </figcaption>
+    </figure>
+  );
+}
+
 function HistoryDetailDialog({
   record,
   imageUrls,
+  referenceUrls,
   open,
   onOpenChange,
   onRestore,
@@ -236,6 +315,7 @@ function HistoryDetailDialog({
 }: {
   record: HistoryRecord | null;
   imageUrls: string[];
+  referenceUrls: string[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onRestore: Props["onRestore"];
@@ -257,12 +337,30 @@ function HistoryDetailDialog({
             <p className="mb-1 text-xs font-medium text-neutral-700">画面描述</p>
             <p className="text-sm leading-relaxed text-neutral-800">{record.prompt}</p>
           </div>
-          <div
-            className={cn(
-              "grid gap-3",
-              record.images.length > 1 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"
-            )}
-          >
+          {record.mode === "edit" && record.referenceImages && record.referenceImages.length > 0 && (
+            <div>
+              <p className="mb-2 text-xs font-medium text-neutral-700">参考图（提交顺序）</p>
+              <div
+                className={cn(
+                  "grid gap-3",
+                  record.referenceImages.length > 1 ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-1"
+                )}
+              >
+                {record.referenceImages.map((ref, i) => (
+                  <ReferenceThumb key={ref.id} refItem={ref} src={referenceUrls[i] ?? ""} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div>
+            <p className="mb-2 text-xs font-medium text-neutral-700">生成结果</p>
+            <div
+              className={cn(
+                "grid gap-3",
+                record.images.length > 1 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"
+              )}
+            >
             {record.images.map((img, i) => (
               <figure key={img.id} className="overflow-hidden rounded-md border border-neutral-200">
                 <a href={imageUrls[i]} target="_blank" rel="noreferrer" download>
@@ -284,6 +382,7 @@ function HistoryDetailDialog({
                 )}
               </figure>
             ))}
+            </div>
           </div>
           <details className="text-xs">
             <summary className="cursor-pointer text-neutral-600">请求参数 JSON</summary>
@@ -300,11 +399,14 @@ function HistoryDetailDialog({
               type="button"
               className="flex-1"
               onClick={() => {
-                onRestore(record.mode, record.params);
+                const edit = buildEditRestore(record);
+                onRestore(record.mode, record.params, edit);
                 onOpenChange(false);
               }}
             >
-              恢复参数到表单
+              {record.mode === "edit" && record.referenceImages?.length
+                ? "恢复参数与参考图"
+                : "恢复参数到表单"}
             </Button>
             <Button type="button" variant="outline" onClick={onDelete}>
               删除此记录

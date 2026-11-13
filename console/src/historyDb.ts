@@ -14,6 +14,19 @@ export type StoredImage = {
   remoteUrl?: string;
 };
 
+/** 编辑任务提交的参考图（顺序与 API 的 image 数组一致，对应提示词里的「图 1」「图 2」） */
+export type StoredReference = {
+  id: string;
+  /** 从 1 开始，与上传 / URL 列表顺序一致 */
+  index: number;
+  fileName?: string;
+  /** 用户在「图片 URL」里填写的原始链接 */
+  sourceUrl?: string;
+  blob?: Blob;
+  /** 无法缓存二进制时保留的可访问外链 */
+  remoteUrl?: string;
+};
+
 export type HistoryRecord = {
   id: string;
   createdAt: number;
@@ -25,12 +38,14 @@ export type HistoryRecord = {
     referenceCount: number;
     usedMultipart: boolean;
   };
+  referenceImages?: StoredReference[];
   images: StoredImage[];
   rawResponse?: string;
 };
 
-export type HistoryListItem = Omit<HistoryRecord, "images" | "rawResponse"> & {
+export type HistoryListItem = Omit<HistoryRecord, "images" | "rawResponse" | "referenceImages"> & {
   imageCount: number;
+  referenceCount?: number;
   thumbMime?: string;
 };
 
@@ -88,6 +103,7 @@ export async function listHistoryRecords(limit = 50): Promise<HistoryListItem[]>
         requestBody: r.requestBody,
         editMeta: r.editMeta,
         imageCount: r.images.length,
+        referenceCount: r.referenceImages?.length,
         thumbMime: r.images[0]?.mimeType,
       });
       cursor.continue();

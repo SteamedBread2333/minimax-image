@@ -3,6 +3,7 @@ import {
   type HistoryRecord,
   type StoredImage,
 } from "./historyDb";
+import { packReferencesForHistory, type PackReferencesInput } from "./referencePack";
 import type { GenerationParams, ImageResult } from "./types";
 
 function newId(): string {
@@ -120,6 +121,7 @@ export type SaveHistoryInput = {
   requestBody: Record<string, unknown>;
   results: ImageResult[];
   editMeta?: HistoryRecord["editMeta"];
+  referencePack?: PackReferencesInput;
   rawResponse?: string;
 };
 
@@ -148,6 +150,11 @@ export async function persistGeneration(input: SaveHistoryInput): Promise<Persis
     return { saved: 0, total: input.results.length, blobCount: 0, urlOnlyCount: 0 };
   }
 
+  let referenceImages: HistoryRecord["referenceImages"];
+  if (input.mode === "edit" && input.referencePack) {
+    referenceImages = await packReferencesForHistory(input.referencePack);
+  }
+
   const record: HistoryRecord = {
     id: newId(),
     createdAt: Date.now(),
@@ -156,6 +163,7 @@ export async function persistGeneration(input: SaveHistoryInput): Promise<Persis
     params: { ...input.params },
     requestBody: input.requestBody,
     editMeta: input.editMeta,
+    referenceImages,
     images,
     rawResponse: input.rawResponse,
   };

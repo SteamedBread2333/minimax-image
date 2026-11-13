@@ -14,14 +14,14 @@ import { ApiKeyPanel } from "./ApiKeyPanel";
 import { formatApiError } from "./formatApiError";
 import { HistorySidebar } from "./HistorySidebar";
 import { persistGeneration } from "./historySave";
+import { ReferenceImagesEditor } from "./ReferenceImagesEditor";
 import { CheckboxRow } from "./components/CheckboxRow";
-import { FormField } from "./components/FormField";
 import { Button } from "./components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "./components/ui/tabs";
-import { Textarea } from "./components/ui/textarea";
 import { ParamFields } from "./ParamFields";
 import { cn } from "./lib/utils";
+import type { PackReferencesInput } from "./referencePack";
 import type { ApiResponse, EditParams, GenerationParams, ImageResult } from "./types";
 
 const defaultParams = (): GenerationParams => ({
@@ -171,17 +171,29 @@ export default function App() {
             await saveRun(mode, params, requestBody, collected, JSON.stringify(data, null, 2), {
               referenceCount: editExtra.files.length,
               usedMultipart: true,
+              referencePack: {
+                files: editExtra.files,
+                submittedUrls: [],
+                usedMultipart: true,
+              },
             });
           }
         } else {
-          const urls = editExtra.imageUrls.split("\n").map((l) => l.trim()).filter(Boolean);
-          if (!urls.length && editExtra.files.length) {
-            for (const f of editExtra.files) {
-              urls.push(await fileToDataUri(f));
-            }
+          const urlLines = editExtra.imageUrls.split("\n").map((l) => l.trim()).filter(Boolean);
+          const urls: string[] = [];
+          for (const f of editExtra.files) {
+            urls.push(await fileToDataUri(f));
+          }
+          for (const line of urlLines) {
+            urls.push(line);
           }
           if (!urls.length) {
             setError("请上传参考图片，或在「高级」里填写图片网址");
+            setLoading(false);
+            return;
+          }
+          if (urls.length > 16) {
+            setError("参考图最多 16 张（本地上传 + URL 合计）");
             setLoading(false);
             return;
           }
@@ -197,6 +209,11 @@ export default function App() {
             await saveRun(mode, params, requestBody, collected, responseText, {
               referenceCount: urls.length,
               usedMultipart: false,
+              referencePack: {
+                files: editExtra.files,
+                submittedUrls: urls,
+                usedMultipart: false,
+              },
             });
           }
         }
@@ -213,7 +230,11 @@ export default function App() {
       requestBody: Record<string, unknown>,
       images: ImageResult[],
       raw: string,
-      editMeta?: { referenceCount: number; usedMultipart: boolean }
+      editMeta?: {
+        referenceCount: number;
+        usedMultipart: boolean;
+        referencePack?: PackReferencesInput;
+      }
     ) {
       try {
         const r = await persistGeneration({
@@ -222,7 +243,13 @@ export default function App() {
           requestBody,
           results: images,
           rawResponse: raw,
-          editMeta,
+          editMeta: editMeta
+            ? {
+                referenceCount: editMeta.referenceCount,
+                usedMultipart: editMeta.usedMultipart,
+              }
+            : undefined,
+          referencePack: mode === "edit" ? editMeta?.referencePack : undefined,
         });
         if (r.saved > 0) {
           const extra =
@@ -244,9 +271,12 @@ export default function App() {
     }
   };
 
-  const onFiles = (files: FileList | null) => {
-    if (!files) return;
-    setEditExtra((s) => ({ ...s, files: Array.from(files).slice(0, 16) }));
+  const onPickFiles = (files: FileList | null) => {
+    if (!files?.length) return;
+    setEditExtra((s) => ({
+      ...s,
+      files: [...s.files, ...Array.from(files)].slice(0, 16),
+    }));
   };
 
   const healthLabel =
@@ -298,51 +328,19 @@ export default function App() {
 
               {tab === "edit" && (
                 <div className="space-y-4 border-t border-neutral-100 pt-4">
-                  <FormField
-                    label="参考图片"
-                    hint="1～16 张，在画面描述中说明如何修改。"
+                  <ReferenceImagesEditor
+                    files={editExtra.files}
+                    imageUrls={editExtra.imageUrls}
+                    onPickFiles={onPickFiles}
+                    onReplaceFiles={(files) => setEditExtra((s) => ({ ...s, files }))}
+                    onImageUrlsChange={(imageUrls) => setEditExtra((s) => ({ ...s, imageUrls }))}
+                  />
+                  <CheckboxRow
+                    checked={editExtra.useMultipart}
+                    onCheckedChange={(v) => setEditExtra((s) => ({ ...s, useMultipart: v }))}
                   >
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={(e) => onFiles(e.target.files)}
-                      className="block w-full text-sm text-neutral-600 file:mr-3 file:rounded-md file:border file:border-neutral-300 file:bg-white file:px-3 file:py-2 file:text-sm file:font-medium"
-                    />
-                    {editExtra.files.length > 0 && (
-                      <ul className="mt-2 space-y-1 text-xs text-neutral-600">
-                        {editExtra.files.map((f, i) => (
-                          <li key={f.name}>
-                            图 {i + 1}：{f.name}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </FormField>
-
-                  <details className="rounded-md border border-neutral-200 px-3 py-2 text-sm">
-                    <summary className="cursor-pointer font-medium">图片网址 / 大文件模式</summary>
-                    <div className="mt-3 space-y-3 border-t border-neutral-100 pt-3">
-                      <FormField label="图片 URL" hint="每行一个链接">
-                        <Textarea
-                          value={editExtra.imageUrls}
-                          onChange={(e) =>
-                            setEditExtra((s) => ({ ...s, imageUrls: e.target.value }))
-                          }
-                          rows={3}
-                          className="min-h-[72px]"
-                        />
-                      </FormField>
-                      <CheckboxRow
-                        checked={editExtra.useMultipart}
-                        onCheckedChange={(v) =>
-                          setEditExtra((s) => ({ ...s, useMultipart: v }))
-                        }
-                      >
-                        大文件直传（multipart）
-                      </CheckboxRow>
-                    </div>
-                  </details>
+                    大文件直传（multipart，仅本地上传）
+                  </CheckboxRow>
                 </div>
               )}
 
@@ -449,9 +447,16 @@ export default function App() {
 
           <div className="lg:col-span-3">
             <HistorySidebar
-              onRestore={(mode, p) => {
+              onRestore={(mode, p, edit) => {
                 setParams(p);
                 setTab(mode);
+                if (edit) {
+                  setEditExtra((s) => ({
+                    ...s,
+                    files: edit.files,
+                    imageUrls: edit.imageUrls,
+                  }));
+                }
               }}
             />
           </div>

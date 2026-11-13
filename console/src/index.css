@@ -11,13 +11,35 @@
   box-sizing: border-box;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
+  min-height: 100dvh;
   font-family: var(--font-sans);
   background: #fff;
   color: #0a0a0a;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* iOS 安全区 */
+.safe-px {
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+
+.safe-pb-page {
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 640px) {
+  .safe-pb-page {
+    padding-bottom: 1.5rem;
+  }
 }
 
 button,
@@ -25,4 +47,19 @@ input,
 select,
 textarea {
   font: inherit;
+}
+
+/* 减轻移动端点击高亮 */
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 表单 ≥16px，避免 iOS 聚焦时自动放大 */
+@media (max-width: 639px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }

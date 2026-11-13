@@ -29,11 +29,11 @@ export function HeaderToolbar({ health }: { health: HealthInfo | null }) {
     <>
       <div
         className={cn(
-          "inline-flex h-10 items-center rounded-full border border-neutral-200/80 bg-neutral-50/90",
-          "pl-3.5 pr-1 shadow-sm backdrop-blur-[2px]"
+          "inline-flex h-10 max-w-full items-center rounded-full border border-neutral-200/80 bg-neutral-50/90",
+          "pl-3 pr-1 shadow-sm backdrop-blur-[2px] sm:pl-3.5"
         )}
       >
-        <span className="flex items-center gap-2 pr-2 text-xs font-medium text-neutral-700">
+        <span className="flex min-w-0 items-center gap-2 pr-2 text-xs font-medium text-neutral-700">
           <span
             className={cn(
               "h-1.5 w-1.5 shrink-0 rounded-full",
@@ -43,7 +43,7 @@ export function HeaderToolbar({ health }: { health: HealthInfo | null }) {
             )}
             aria-hidden
           />
-          {label}
+          <span className="truncate">{label}</span>
         </span>
         <span className="mr-1 h-4 w-px bg-neutral-200" aria-hidden />
         <Button

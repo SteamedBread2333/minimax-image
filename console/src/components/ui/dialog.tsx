@@ -29,7 +29,9 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-1/2 top-1/2 z-50 flex max-h-[90vh] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg border border-neutral-200 bg-white shadow-lg outline-none",
+        "fixed z-50 flex w-full max-h-[min(92dvh,100%)] flex-col border border-neutral-200 bg-white shadow-lg outline-none",
+        "inset-x-0 bottom-0 top-auto rounded-t-2xl",
+        "sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:w-[calc(100%-2rem)] sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg",
         className
       )}
       {...props}
@@ -45,7 +47,7 @@ const DialogContent = React.forwardRef<
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("border-b border-neutral-100 px-5 py-4 pr-12", className)} {...props} />
+  <div className={cn("border-b border-neutral-100 px-4 py-3 pr-12 sm:px-5 sm:py-4", className)} {...props} />
 );
 
 const DialogTitle = React.forwardRef<
@@ -61,7 +63,7 @@ const DialogTitle = React.forwardRef<
 DialogTitle.displayName = DialogPrimitive.Title.displayName;
 
 const DialogBody = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("overflow-y-auto px-5 py-4", className)} {...props} />
+  <div className={cn("overflow-y-auto overscroll-contain px-4 py-4 sm:px-5", className)} {...props} />
 );
 
 export {

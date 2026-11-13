@@ -295,15 +295,47 @@ export default function App() {
     }));
   };
 
+  const resetForm = () => {
+    setParams(defaultParams());
+    setEditExtra({ imageUrls: "", useMultipart: false, files: [] });
+    setResults([]);
+    setError(null);
+    setRawResponse("");
+    setSaveHint(null);
+  };
+
+  const generateButtons = (
+    <>
+      <Button
+        type="button"
+        className="h-11 min-h-11 flex-1 sm:min-w-[140px]"
+        disabled={loading}
+        onClick={run}
+      >
+        {loading ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            生成中…
+          </>
+        ) : (
+          "开始生成"
+        )}
+      </Button>
+      <Button type="button" variant="outline" className="h-11 min-h-11 shrink-0" disabled={loading} onClick={resetForm}>
+        重置
+      </Button>
+    </>
+  );
+
   return (
-    <div className="min-h-screen bg-white text-neutral-950">
-      <div className="mx-auto max-w-[1280px] px-4 py-6 sm:px-6">
-        <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
+    <div className="min-h-screen min-h-dvh bg-white text-neutral-950">
+      <div className="safe-px safe-pb-page mx-auto max-w-[1280px] py-4 sm:px-6 sm:py-6">
+        <header className="mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <div className="min-w-0">
             <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">MiniMax丹炉</h1>
-            <p className="mt-1.5 text-sm text-neutral-500">文生图与图片编辑</p>
+            <p className="mt-1 text-sm text-neutral-500">文生图与图片编辑</p>
           </div>
-          <div className="flex w-full justify-end sm:w-auto">
+          <div className="flex w-full shrink-0 justify-start sm:w-auto sm:justify-end">
             <HeaderToolbar health={health} />
           </div>
         </header>
@@ -311,14 +343,14 @@ export default function App() {
 
         <ApiKeyPanel onSaved={refreshHealth} />
 
-        <Tabs value={tab} onValueChange={(v) => setTab(v as "generate" | "edit")} className="mb-6">
-          <TabsList>
+        <Tabs value={tab} onValueChange={(v) => setTab(v as "generate" | "edit")} className="mb-5 sm:mb-6">
+          <TabsList className="w-full">
             <TabsTrigger value="generate">文生图</TabsTrigger>
             <TabsTrigger value="edit">图片编辑</TabsTrigger>
           </TabsList>
         </Tabs>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start lg:gap-5">
+        <div className="grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-12 lg:items-start lg:gap-5">
           <Card className="min-w-0 lg:col-span-4">
             <CardHeader>
               <CardTitle>{tab === "generate" ? "生成设置" : "编辑设置"}</CardTitle>
@@ -349,38 +381,8 @@ export default function App() {
                 </div>
               )}
 
-              <div className="flex flex-col gap-2.5 border-t border-neutral-100 pt-5 sm:flex-row">
-                <Button
-                  type="button"
-                  className="h-11 flex-1 sm:min-w-[140px]"
-                  disabled={loading}
-                  onClick={run}
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      生成中…
-                    </>
-                  ) : (
-                    "开始生成"
-                  )}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-11"
-                  disabled={loading}
-                  onClick={() => {
-                    setParams(defaultParams());
-                    setEditExtra({ imageUrls: "", useMultipart: false, files: [] });
-                    setResults([]);
-                    setError(null);
-                    setRawResponse("");
-                    setSaveHint(null);
-                  }}
-                >
-                  重置
-                </Button>
+              <div className="hidden flex-col gap-2.5 border-t border-neutral-100 pt-5 sm:flex sm:flex-row">
+                {generateButtons}
               </div>
 
               <details className="text-xs text-neutral-500">
@@ -471,7 +473,7 @@ export default function App() {
             </CardContent>
           </Card>
 
-          <div className="lg:col-span-3">
+          <div className="min-w-0 lg:col-span-3">
             <HistorySidebar
               onRestore={(mode, p, edit) => {
                 setParams(p);
@@ -487,6 +489,13 @@ export default function App() {
             />
           </div>
         </div>
+      </div>
+
+      <div
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-neutral-200 bg-white/95 px-3 pt-2 backdrop-blur-md sm:hidden"
+        style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+      >
+        <div className="flex gap-2">{generateButtons}</div>
       </div>
     </div>
   );

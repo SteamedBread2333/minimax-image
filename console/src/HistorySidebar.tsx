@@ -156,7 +156,6 @@ export function HistorySidebar({ onRestore }: Props) {
     await loadList();
   };
 
-  const scrollHeight = "min(560px, calc(100vh - 11rem))";
 
   return (
     <>
@@ -184,7 +183,7 @@ export function HistorySidebar({ onRestore }: Props) {
           </div>
         </CardHeader>
         <CardContent className="min-h-0 flex-1 pt-0">
-          <ScrollArea style={{ height: scrollHeight }} className="w-full pr-2">
+          <ScrollArea className="h-[min(42dvh,360px)] w-full pr-2 lg:h-[min(560px,calc(100dvh-11rem))]">
             {loading && (
               <p className="py-8 text-center text-xs text-neutral-500">加载中…</p>
             )}

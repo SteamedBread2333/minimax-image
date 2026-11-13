@@ -7,7 +7,7 @@
 - 文生图 `POST /v1/images/generations`
 - 图片编辑 `POST /v1/images/edits`（JSON 或 multipart）
 - 页面配置国内 / 国际 API 地址与 Key
-- 历史记录本地保存（含图片 blob）
+- 历史记录本地保存（含图片 blob / Base64）
 
 ## 使用
 
@@ -30,6 +30,7 @@ npm run dev
 
 ## 说明
 
-- MiniMax API 已开放 CORS，无需 Node 代理。
+- MiniMax API 已开放 CORS，**无需后端代理**。
 - Key 只存在浏览器，请勿在公共电脑保存。
-- 历史存图时若图片 CDN 不允许跨域，可能只保存元数据；可选用 `b64_json` 返回格式。
+- **纯前端限制**：返回方式为 URL 时，图片在 OSS 上，页面**无法用脚本跨域下载**。要稳定本地历史请用 **Base64 返回**（默认已开启）；旧记录可新标签打开外链另存为后，在历史详情 **导入本机图片** 写入 Blob / Base64。
+- 流式返回与 Base64 不能同时开启；多张流式时请用 URL 返回（历史可能仅存外链）。

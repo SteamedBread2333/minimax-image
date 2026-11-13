@@ -39,7 +39,7 @@ const defaultParams = (): GenerationParams => ({
   aspect_ratio: "auto",
   area: "4K",
   output_format: "jpeg",
-  response_format: "url",
+  response_format: "b64_json",
   stream: false,
   output_compression: 95,
 });

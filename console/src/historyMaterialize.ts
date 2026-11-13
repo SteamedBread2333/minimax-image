@@ -6,25 +6,24 @@ import {
   type StoredReference,
 } from "./historyDb";
 
+async function blobFromResponse(res: Response, fallbackMime: string): Promise<Blob | null> {
+  if (!res.ok) return null;
+  const blob = await res.blob();
+  if (blob.size === 0) return null;
+  if (!blob.type || blob.type === "application/octet-stream") {
+    return new Blob([blob], { type: fallbackMime });
+  }
+  return blob;
+}
+
+/** 仅对带 CORS 的外链有效；MiniMax OSS 签名链在纯前端下一般会失败 */
 export async function fetchUrlAsBlob(url: string, fallbackMime: string): Promise<Blob | null> {
   try {
     const res = await fetch(url, { mode: "cors", credentials: "omit" });
-    if (res.ok) {
-      const blob = await res.blob();
-      if (blob.size > 0) return blob;
-    }
+    const blob = await blobFromResponse(res, fallbackMime);
+    if (blob) return blob;
   } catch {
     /* CORS */
-  }
-  try {
-    const res = await fetch(url, { mode: "no-cors", credentials: "omit" });
-    const blob = await res.blob();
-    if (blob.size > 0 && blob.type && blob.type !== "application/octet-stream") {
-      return blob;
-    }
-    if (blob.size > 0) return new Blob([blob], { type: fallbackMime });
-  } catch {
-    /* ignore */
   }
   try {
     return await loadImageViaCanvas(url, fallbackMime);
@@ -65,79 +64,68 @@ export function historyHasUrlOnlyAssets(record: HistoryRecord): boolean {
   return results || refs;
 }
 
-export type MaterializeResult = {
+export type ImportFilesResult = {
   record: HistoryRecord;
-  imagesOk: number;
-  imagesFail: number;
-  refsOk: number;
-  refsFail: number;
+  imagesImported: number;
+  refsImported: number;
 };
 
-async function materializeImage(img: StoredImage, fallbackMime: string): Promise<StoredImage> {
-  if (img.blob || !img.remoteUrl) return img;
-  const blob = await fetchUrlAsBlob(img.remoteUrl, img.mimeType || fallbackMime);
-  if (!blob) return img;
-  return {
-    ...img,
-    blob,
-    mimeType: blob.type || img.mimeType || fallbackMime,
-  };
-}
-
-async function materializeReference(ref: StoredReference, fallbackMime: string): Promise<StoredReference> {
-  if (ref.blob) return ref;
-  const url = ref.sourceUrl ?? ref.remoteUrl;
-  if (!url) return ref;
-  const blob = await fetchUrlAsBlob(url, fallbackMime);
-  if (!blob) return ref;
-  return {
-    ...ref,
-    blob,
-  };
-}
-
-/** 将历史中仅存 URL 的条目下载为 Blob 写回 IndexedDB（与 Base64 本地保存等效） */
-export async function materializeHistoryRecord(record: HistoryRecord): Promise<MaterializeResult> {
+/**
+ * 纯前端落库：用户先在浏览器「另存为」外链图，再从此处选文件写入 Blob + Base64。
+ * 按顺序填充尚未有 blob 的结果图 / 参考图。
+ */
+export async function importFilesIntoHistory(
+  record: HistoryRecord,
+  files: File[]
+): Promise<ImportFilesResult> {
+  if (!files.length) {
+    return { record, imagesImported: 0, refsImported: 0 };
+  }
   const mime = mimeFromOutputFormat(record.params.output_format);
-  let imagesOk = 0;
-  let imagesFail = 0;
+  let fileIdx = 0;
+  let imagesImported = 0;
+  let refsImported = 0;
+
   const images: StoredImage[] = [];
   for (const img of record.images) {
-    const next = await materializeImage(img, mime);
-    if (!img.blob && img.remoteUrl) {
-      if (next.blob) imagesOk++;
-      else imagesFail++;
+    if (img.blob || fileIdx >= files.length) {
+      images.push(img);
+      continue;
     }
-    images.push(next);
+    const f = files[fileIdx++];
+    const b64 = await blobToBase64(f);
+    images.push({
+      ...img,
+      blob: f,
+      b64,
+      mimeType: f.type || img.mimeType || mime,
+    });
+    imagesImported++;
   }
 
-  let refsOk = 0;
-  let refsFail = 0;
   let referenceImages = record.referenceImages;
   if (referenceImages?.length) {
     const refs: StoredReference[] = [];
     for (const ref of referenceImages) {
-      const next = await materializeReference(ref, mime);
-      const hadUrl = !ref.blob && (ref.sourceUrl || ref.remoteUrl);
-      if (hadUrl) {
-        if (next.blob) refsOk++;
-        else refsFail++;
+      if (ref.blob || fileIdx >= files.length) {
+        refs.push(ref);
+        continue;
       }
-      refs.push(next);
+      const f = files[fileIdx++];
+      refs.push({ ...ref, blob: f });
+      refsImported++;
     }
     referenceImages = refs;
   }
 
   const updated: HistoryRecord = { ...record, images, referenceImages };
   await saveHistoryRecord(updated);
-  return { record: updated, imagesOk, imagesFail, refsOk, refsFail };
+  return { record: updated, imagesImported, refsImported };
 }
 
-/** 单张图转 Base64 字符串（便于导出）；需先有 blob 或可拉取的 remoteUrl */
+/** 单张图转 Base64；需已有 blob */
 export async function storedImageToBase64(img: StoredImage): Promise<string | null> {
+  if (img.b64) return img.b64;
   if (img.blob) return blobToBase64(img.blob);
-  if (!img.remoteUrl) return null;
-  const blob = await fetchUrlAsBlob(img.remoteUrl, img.mimeType || "image/jpeg");
-  if (!blob) return null;
-  return blobToBase64(blob);
+  return null;
 }

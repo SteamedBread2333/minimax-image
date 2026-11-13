@@ -29,7 +29,6 @@ export function ApiKeyPanel({ onSaved }: Props) {
   const [region, setRegion] = useState<ApiRegion>("china");
   const [saved, setSaved] = useState<ClientSettings | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-
   useEffect(() => {
     const s = loadClientSettings();
     setSaved(s);

@@ -8,6 +8,15 @@ export type ChangelogEntry = {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2025-11-13",
+    title: "纯前端落库",
+    items: [
+      "默认返回方式为 Base64，生成结果直接写入本地历史",
+      "移除图片代理；OSS 外链改为「另存为 + 导入本机图片」",
+      "历史仅存 URL 时可手动导入文件得到 Blob + Base64",
+    ],
+  },
+  {
+    date: "2025-11-13",
     title: "表单与控件",
     items: [
       "下拉改用 Radix Select（键盘与焦点一致）",

@@ -3,7 +3,7 @@ import {
   type HistoryRecord,
   type StoredImage,
 } from "./historyDb";
-import { base64ToBlob, mimeFromOutputFormat } from "./imageBlob";
+import { base64ToBlob, mimeFromOutputFormat, blobToBase64 } from "./imageBlob";
 import { fetchUrlAsBlob } from "./historyMaterialize";
 import { packReferencesForHistory, type PackReferencesInput } from "./referencePack";
 import type { GenerationParams, ImageResult } from "./types";
@@ -30,12 +30,15 @@ async function resultToStored(
   const blob = await blobFromResult(item, mime);
 
   if (blob) {
+    const b64 =
+      item.b64_json ?? (item.url ? await blobToBase64(blob).catch(() => undefined) : undefined);
     return {
       id: `img-${index}`,
       mimeType: blob.type || mime,
       size: item.size,
       revised_prompt: item.revised_prompt,
       blob,
+      ...(b64 ? { b64 } : {}),
     };
   }
 

@@ -11,6 +11,8 @@ export type StoredImage = {
   revised_prompt?: string;
   /** 本机缓存的二进制；若无则可能仅有 remoteUrl */
   blob?: Blob;
+  /** 由 URL 代理下载后可选缓存的 Base64（与 blob 二选一或兼有） */
+  b64?: string;
   remoteUrl?: string;
 };
 

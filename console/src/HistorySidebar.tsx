@@ -1,9 +1,6 @@
 import { Loader2, X } from "lucide-react";
 import { useCallback, useEffect, useState, type MouseEvent } from "react";
-import {
-  historyHasUrlOnlyAssets,
-  materializeHistoryRecord,
-} from "./historyMaterialize";
+import { historyHasUrlOnlyAssets, importFilesIntoHistory } from "./historyMaterialize";
 import { blobToObjectUrl } from "./historySave";
 import {
   clearAllHistory,
@@ -99,29 +96,25 @@ export function HistorySidebar({ onRestore }: Props) {
     setModalRecord(record);
   };
 
-  const handleMaterialize = async () => {
-    if (!modalRecord || materializing) return;
+  const handleImportFiles = async (files: FileList | null) => {
+    if (!modalRecord || materializing || !files?.length) return;
     setMaterializing(true);
     setMaterializeHint(null);
     try {
-      const r = await materializeHistoryRecord(modalRecord);
+      const r = await importFilesIntoHistory(modalRecord, Array.from(files));
       const fresh = await getHistoryRecord(modalRecord.id);
       if (fresh) setModalRecord(fresh);
-      const parts: string[] = [];
-      if (r.imagesOk || r.imagesFail) {
-        parts.push(`结果图 ${r.imagesOk} 成功${r.imagesFail ? `、${r.imagesFail} 失败` : ""}`);
-      }
-      if (r.refsOk || r.refsFail) {
-        parts.push(`参考图 ${r.refsOk} 成功${r.refsFail ? `、${r.refsFail} 失败` : ""}`);
-      }
-      if (r.imagesOk + r.refsOk === 0) {
-        setMaterializeHint("未能下载（链接可能已过期或禁止跨域）。可改用 Base64 返回后重新生成。");
+      if (r.imagesImported + r.refsImported === 0) {
+        setMaterializeHint("没有可填充的空位（可能都已缓存，或文件数量不足）。");
       } else {
-        setMaterializeHint(`已缓存到本机 IndexedDB（${parts.join("；")}）`);
+        const parts: string[] = [];
+        if (r.imagesImported) parts.push(`结果图 ${r.imagesImported} 张`);
+        if (r.refsImported) parts.push(`参考图 ${r.refsImported} 张`);
+        setMaterializeHint(`已写入 IndexedDB（Blob + Base64）：${parts.join("、")}`);
       }
       await loadList();
     } catch (e) {
-      setMaterializeHint(e instanceof Error ? e.message : "缓存失败");
+      setMaterializeHint(e instanceof Error ? e.message : "导入失败");
     } finally {
       setMaterializing(false);
     }
@@ -221,9 +214,9 @@ export function HistorySidebar({ onRestore }: Props) {
         open={Boolean(modalRecord)}
         onOpenChange={(open) => !open && setModalRecord(null)}
         onRestore={onRestore}
-        onMaterialize={handleMaterialize}
-        materializing={materializing}
-        materializeHint={materializeHint}
+        onImportFiles={handleImportFiles}
+        importing={materializing}
+        importHint={materializeHint}
         onDelete={async () => {
           if (!modalRecord) return;
           if (!confirm("删除这条记录？")) return;
@@ -349,9 +342,9 @@ function HistoryDetailDialog({
   open,
   onOpenChange,
   onRestore,
-  onMaterialize,
-  materializing,
-  materializeHint,
+  onImportFiles,
+  importing,
+  importHint,
   onDelete,
 }: {
   record: HistoryRecord | null;
@@ -360,9 +353,9 @@ function HistoryDetailDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onRestore: Props["onRestore"];
-  onMaterialize: () => void;
-  materializing: boolean;
-  materializeHint: string | null;
+  onImportFiles: (files: FileList | null) => void;
+  importing: boolean;
+  importHint: string | null;
   onDelete: () => void;
 }) {
   if (!record) return null;
@@ -430,28 +423,43 @@ function HistoryDetailDialog({
           </div>
           {record && historyHasUrlOnlyAssets(record) && (
             <div className="rounded-md border border-amber-200 bg-amber-50/80 px-3 py-2.5 text-xs leading-relaxed text-amber-950">
-              <p>部分图片仅存外链，离线或过期后无法查看。可尝试从 URL 下载并以二进制写入本机（等同 Base64 落库）。</p>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="mt-2 h-8 border-amber-300 bg-white"
-                disabled={materializing}
-                onClick={onMaterialize}
-              >
-                {materializing ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    下载中…
-                  </>
-                ) : (
-                  "URL 转本地保存"
-                )}
-              </Button>
+              <p className="space-y-1.5">
+                <span>
+                  纯前端无法从 OSS 外链用脚本下载（无 CORS）。可：① 生成时选
+                  <strong> Base64 返回</strong>；② 点上方图片「新标签打开」另存为后，再
+                  <strong> 导入本机文件</strong> 写入 Blob / Base64。
+                </span>
+              </p>
+              <label className="mt-2 inline-flex cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="sr-only"
+                  disabled={importing}
+                  onChange={(e) => {
+                    onImportFiles(e.target.files);
+                    e.target.value = "";
+                  }}
+                />
+                <span className="inline-flex h-8 items-center gap-2 rounded-md border border-amber-300 bg-white px-3 text-xs font-medium text-neutral-900 hover:bg-amber-50">
+                  {importing ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      写入中…
+                    </>
+                  ) : (
+                    "导入本机图片（Blob + Base64）"
+                  )}
+                </span>
+              </label>
+              <p className="mt-1.5 text-[11px] text-amber-900/90">
+                按顺序填充尚未本地缓存的结果图，再填充参考图。
+              </p>
             </div>
           )}
-          {materializeHint && (
-            <p className="text-xs leading-relaxed text-neutral-600">{materializeHint}</p>
+          {importHint && (
+            <p className="text-xs leading-relaxed text-neutral-600">{importHint}</p>
           )}
           <details className="text-xs">
             <summary className="cursor-pointer text-neutral-600">请求参数 JSON</summary>

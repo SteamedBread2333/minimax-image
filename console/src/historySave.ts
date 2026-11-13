@@ -23,9 +23,20 @@ function mimeFromFormat(fmt: GenerationParams["output_format"]): string {
 }
 
 async function fetchRemoteImage(url: string): Promise<Blob> {
-  const res = await fetch(url, { mode: "cors", credentials: "omit" });
-  if (!res.ok) throw new Error(`download ${res.status}`);
-  return await res.blob();
+  try {
+    const res = await fetch(url, { mode: "cors", credentials: "omit" });
+    if (res.ok) {
+      const blob = await res.blob();
+      if (blob.size > 0) return blob;
+    }
+  } catch {
+    /* CORS 失败时继续 */
+  }
+  // 不透明响应仍可存 IndexedDB，并用 blob: URL 在本页展示
+  const res = await fetch(url, { mode: "no-cors", credentials: "omit" });
+  const blob = await res.blob();
+  if (blob.size > 0) return blob;
+  throw new Error("empty blob");
 }
 
 function loadImageViaCanvas(url: string): Promise<Blob> {

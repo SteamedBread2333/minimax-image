@@ -145,7 +145,10 @@ export function ParamFields({ params, onChange, showPromptEnhance = true }: Prop
                 ))}
               </SelectNative>
             </FormField>
-            <FormField label="返回方式">
+            <FormField
+              label="返回方式"
+              hint="要稳定写入本机历史并离线看图，请选 Base64；选链接时可能只存外链（约 24h）。"
+            >
               <SelectNative
                 value={params.response_format}
                 disabled={params.stream}

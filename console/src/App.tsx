@@ -227,9 +227,9 @@ export default function App() {
         if (r.saved > 0) {
           const extra =
             r.urlOnlyCount > 0
-              ? `（${r.blobCount} 张已缓存到本机，${r.urlOnlyCount} 张仅保存链接；图片 CDN 跨域时链接约 24h 有效）`
+              ? `（${r.blobCount} 张完整缓存，${r.urlOnlyCount} 张仅外链；高级选项可改用 Base64 返回）`
               : "";
-          setSaveHint(`已保存记录与参数到 IndexedDB${extra}`);
+          setSaveHint(`已写入 IndexedDB${extra}`);
         } else if (images.length > 0) {
           setSaveHint("生成成功，但未能写入历史（请检查浏览器是否允许站点存储数据）");
         }
@@ -422,12 +422,7 @@ export default function App() {
                       className="overflow-hidden rounded-md border border-neutral-200"
                     >
                       <a href={src} target="_blank" rel="noreferrer" className="block">
-                        <img
-                          src={src}
-                          alt=""
-                          crossOrigin="anonymous"
-                          className="aspect-square w-full object-cover"
-                        />
+                        <img src={src} alt="" className="aspect-square w-full object-cover" />
                       </a>
                       <figcaption className="space-y-0.5 px-2 py-2 text-[11px] text-neutral-500">
                         {item.size && <div>尺寸 {item.size}</div>}

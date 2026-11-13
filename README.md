@@ -20,6 +20,14 @@ npm run dev
 
 生产构建：`npm run build`，静态文件在 `console/dist`，可部署到任意静态托管。
 
+## GitHub Pages
+
+1. 仓库 **Settings → Pages → Build and deployment → Source** 选 **GitHub Actions**。
+2. 将代码推到 `main`（或 `master`），会自动运行 `.github/workflows/deploy-pages.yml`。
+3. 访问 `https://<用户名>.github.io/<仓库名>/`（workflow 会设置 `VITE_BASE_PATH` 为 `/仓库名/`）。
+
+若仓库名为 `username.github.io`（用户站根目录），在 workflow 的 Build 步骤把 `VITE_BASE_PATH` 改为 `/`。
+
 ## 说明
 
 - MiniMax API 已开放 CORS，无需 Node 代理。

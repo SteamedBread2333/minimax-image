@@ -1,36 +1,57 @@
-# MiniMax 图片工作台
+# MiniMax丹炉
 
-纯前端 SPA，浏览器直连 [MiniMax H3 Image](https://platform.minimax.io/docs/api-reference/image-generation-h3-generations) API。API Key 与历史记录均存在本机（localStorage / IndexedDB）。
+在浏览器里使用 [MiniMax H3 Image](https://platform.minimax.io/docs/api-reference/image-generation-h3-generations) 做文生图与图片编辑。纯前端单页应用，**Key 与历史都在本机**，不经过自有后端。
 
-## 功能
+## 你能做什么
 
-- 文生图 `POST /v1/images/generations`
-- 图片编辑 `POST /v1/images/edits`（JSON 或 multipart）
-- 页面配置国内 / 国际 API 地址与 Key
-- 历史记录本地保存（含图片 blob / Base64）
+| 能力 | 说明 |
+|------|------|
+| 文生图 | 模型标准版 / 快速版，画面比例、清晰度、张数等可调 |
+| 图片编辑 | 最多 16 张参考图，提示词中按「图 1、图 2…」说明 |
+| API 配置 | 国内 [platform.minimaxi.com](https://platform.minimaxi.com) / 国际 [platform.minimax.io](https://platform.minimax.io)，Key 存 localStorage |
+| 历史记录 | 生成结果写入 IndexedDB，可看详情、恢复参数与参考图 |
+| 纯静态部署 | 构建产物可放 GitHub Pages 或任意静态托管 |
 
-## 使用
+## 快速开始
 
 ```bash
+git clone <你的仓库地址>
+cd minimax-image
 npm install
 npm run dev
 ```
 
-打开 http://localhost:5173 ，在 **API 连接** 中保存 Key 后即可使用。
+浏览器打开 http://localhost:5173 ，展开 **API 连接**，填入 Key 并选择 **国内 / 国际**（须与 Key 签发区域一致），保存后即可生成。
 
-生产构建：`npm run build`，静态文件在 `console/dist`，可部署到任意静态托管。
+生产构建：
 
-## GitHub Pages
+```bash
+npm run build
+# 静态资源在 console/dist
+npm run preview   # 本地预览构建结果
+```
 
-1. 仓库 **Settings → Pages → Build and deployment → Source** 选 **GitHub Actions**。
-2. 将代码推到 `main`（或 `master`），会自动运行 `.github/workflows/deploy-pages.yml`。
-3. 访问 `https://<用户名>.github.io/<仓库名>/`（workflow 会设置 `VITE_BASE_PATH` 为 `/仓库名/`）。
+## 推荐设置（少踩坑）
 
-若仓库名为 `username.github.io`（用户站根目录），在 workflow 的 Build 步骤把 `VITE_BASE_PATH` 改为 `/`。
+1. **返回方式**：默认 **Base64**。历史可完整离线保存；URL 返回的图在阿里云 OSS 上，纯前端**无法用脚本下载**。
+2. **流式**：与 Base64 不能同时开；多张流式需用 URL，历史可能只留外链。
+3. **负面提示词**：H3 不支持单独 negative prompt；要排除的内容写进正向描述（如「无文字、无 logo」）。
+4. **计费**：URL 与 Base64 返回方式**不额外加价**，按成功出图的 token 扣费（见[官方定价](https://platform.minimax.io/docs/pricing/overview)）。
 
-## 说明
+仅有 **URL** 的旧历史：在详情里 **新标签打开 → 另存为**，再用 **导入本机图片** 写入 Blob / Base64。
 
-- MiniMax API 已开放 CORS，**无需后端代理**。
-- Key 只存在浏览器，请勿在公共电脑保存。
-- **纯前端限制**：返回方式为 URL 时，图片在 OSS 上，页面**无法用脚本跨域下载**。要稳定本地历史请用 **Base64 返回**（默认已开启）；旧记录可新标签打开外链另存为后，在历史详情 **导入本机图片** 写入 Blob / Base64。
-- 流式返回与 Base64 不能同时开启；多张流式时请用 URL 返回（历史可能仅存外链）。
+## 隐私与安全
+
+- API Key 只保存在**当前浏览器**，不会上传到本项目的服务器（本项目无后端）。
+- IndexedDB / localStorage 按**站点源**隔离：localhost 与 GitHub Pages 的历史不互通。
+- 勿在公共电脑上保存 Key；构建产物不要提交 `.env` 或 Key。
+
+## 技术栈
+
+React · Vite · Tailwind CSS · Radix UI · IndexedDB
+
+## 相关文档
+
+- [文生图 API](https://platform.minimax.io/docs/api-reference/image-generation-h3-generations)
+- [图片编辑 API](https://platform.minimax.io/docs/api-reference/image-generation-h3-edits)
+- [图片生成指南](https://platform.minimax.io/docs/guides/image-generation)

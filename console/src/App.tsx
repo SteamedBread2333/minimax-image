@@ -300,7 +300,7 @@ export default function App() {
       <div className="mx-auto max-w-[1280px] px-4 py-6 sm:px-6">
         <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">MiniMax 图片工作台</h1>
+            <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">MiniMax丹炉</h1>
             <p className="mt-1.5 text-sm text-neutral-500">文生图与图片编辑</p>
           </div>
           <div className="flex w-full justify-end sm:w-auto">

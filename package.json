@@ -1,0 +1,13 @@
+{
+  "name": "minimax-image",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "npm run dev -w console",
+    "build": "npm run build -w console",
+    "preview": "npm run preview -w console"
+  },
+  "workspaces": [
+    "console"
+  ]
+}

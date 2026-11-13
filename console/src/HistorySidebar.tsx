@@ -69,9 +69,17 @@ export function HistorySidebar({ onRestore }: Props) {
       setModalUrls([]);
       return;
     }
-    const urls = modalRecord.images.map((img) => blobToObjectUrl(img.blob));
+    const toRevoke: string[] = [];
+    const urls = modalRecord.images.map((img) => {
+      if (img.blob) {
+        const u = blobToObjectUrl(img.blob);
+        toRevoke.push(u);
+        return u;
+      }
+      return img.remoteUrl ?? "";
+    });
     setModalUrls(urls);
-    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+    return () => toRevoke.forEach((u) => URL.revokeObjectURL(u));
   }, [modalRecord]);
 
   const handleDelete = async (e: MouseEvent, id: string) => {
@@ -165,10 +173,13 @@ function HistoryListRow({
   useEffect(() => {
     let revoked: string | null = null;
     getHistoryRecord(item.id).then((record) => {
-      const blob = record?.images[0]?.blob;
-      if (blob) {
-        revoked = blobToObjectUrl(blob);
+      const img0 = record?.images[0];
+      if (!img0) return;
+      if (img0.blob) {
+        revoked = blobToObjectUrl(img0.blob);
         setThumb(revoked);
+      } else if (img0.remoteUrl) {
+        setThumb(img0.remoteUrl);
       }
     });
     return () => {

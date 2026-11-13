@@ -216,7 +216,7 @@ export default function App() {
       editMeta?: { referenceCount: number; usedMultipart: boolean }
     ) {
       try {
-        const n = await persistGeneration({
+        const r = await persistGeneration({
           mode,
           params: p,
           requestBody,
@@ -224,9 +224,22 @@ export default function App() {
           rawResponse: raw,
           editMeta,
         });
-        if (n > 0) setSaveHint(`已自动保存 ${n} 张图片与参数到本机（IndexedDB）`);
-      } catch {
-        setSaveHint("生成成功，但保存到本机失败（可能是磁盘或权限问题）");
+        if (r.saved > 0) {
+          const extra =
+            r.urlOnlyCount > 0
+              ? `（${r.blobCount} 张已缓存到本机，${r.urlOnlyCount} 张仅保存链接；图片 CDN 跨域时链接约 24h 有效）`
+              : "";
+          setSaveHint(`已保存记录与参数到 IndexedDB${extra}`);
+        } else if (images.length > 0) {
+          setSaveHint("生成成功，但未能写入历史（请检查浏览器是否允许站点存储数据）");
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "";
+        setSaveHint(
+          msg.includes("QuotaExceeded")
+            ? "本机存储空间不足，请删除部分历史记录后重试"
+            : "保存到 IndexedDB 失败，请检查浏览器隐私设置是否阻止本地存储"
+        );
       }
     }
   };
@@ -409,7 +422,12 @@ export default function App() {
                       className="overflow-hidden rounded-md border border-neutral-200"
                     >
                       <a href={src} target="_blank" rel="noreferrer" className="block">
-                        <img src={src} alt="" className="aspect-square w-full object-cover" />
+                        <img
+                          src={src}
+                          alt=""
+                          crossOrigin="anonymous"
+                          className="aspect-square w-full object-cover"
+                        />
                       </a>
                       <figcaption className="space-y-0.5 px-2 py-2 text-[11px] text-neutral-500">
                         {item.size && <div>尺寸 {item.size}</div>}

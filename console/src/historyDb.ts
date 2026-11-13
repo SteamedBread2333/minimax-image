@@ -9,7 +9,9 @@ export type StoredImage = {
   mimeType: string;
   size?: string;
   revised_prompt?: string;
-  blob: Blob;
+  /** 本机缓存的二进制；若无则可能仅有 remoteUrl */
+  blob?: Blob;
+  remoteUrl?: string;
 };
 
 export type HistoryRecord = {

@@ -23,9 +23,52 @@ function mimeFromFormat(fmt: GenerationParams["output_format"]): string {
 }
 
 async function fetchRemoteImage(url: string): Promise<Blob> {
-  const res = await fetch(url, { mode: "cors" });
-  if (!res.ok) throw new Error(`下载图片失败 (${res.status})`);
+  const res = await fetch(url, { mode: "cors", credentials: "omit" });
+  if (!res.ok) throw new Error(`download ${res.status}`);
   return await res.blob();
+}
+
+function loadImageViaCanvas(url: string): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("canvas"));
+        return;
+      }
+      ctx.drawImage(img, 0, 0);
+      canvas.toBlob(
+        (b) => (b ? resolve(b) : reject(new Error("toBlob"))),
+        "image/jpeg",
+        0.92
+      );
+    };
+    img.onerror = () => reject(new Error("image load"));
+    img.src = url;
+  });
+}
+
+async function blobFromResult(item: ImageResult, mime: string): Promise<Blob | null> {
+  if (item.b64_json) {
+    return base64ToBlob(item.b64_json, mime);
+  }
+  if (!item.url) return null;
+
+  try {
+    return await fetchRemoteImage(item.url);
+  } catch {
+    /* continue */
+  }
+  try {
+    return await loadImageViaCanvas(item.url);
+  } catch {
+    return null;
+  }
 }
 
 async function resultToStored(
@@ -33,15 +76,11 @@ async function resultToStored(
   mime: string,
   index: number
 ): Promise<StoredImage | null> {
-  try {
-    let blob: Blob;
-    if (item.b64_json) {
-      blob = base64ToBlob(item.b64_json, mime);
-    } else if (item.url) {
-      blob = await fetchRemoteImage(item.url);
-    } else {
-      return null;
-    }
+  if (!item.url && !item.b64_json) return null;
+
+  const blob = await blobFromResult(item, mime);
+
+  if (blob) {
     return {
       id: `img-${index}`,
       mimeType: blob.type || mime,
@@ -49,12 +88,19 @@ async function resultToStored(
       revised_prompt: item.revised_prompt,
       blob,
     };
-  } catch {
-    if (item.url) {
-      return null;
-    }
-    return null;
   }
+
+  if (item.url) {
+    return {
+      id: `img-${index}`,
+      mimeType: mime,
+      size: item.size,
+      revised_prompt: item.revised_prompt,
+      remoteUrl: item.url,
+    };
+  }
+
+  return null;
 }
 
 export type SaveHistoryInput = {
@@ -66,14 +112,30 @@ export type SaveHistoryInput = {
   rawResponse?: string;
 };
 
-export async function persistGeneration(input: SaveHistoryInput): Promise<number> {
+export type PersistResult = {
+  saved: number;
+  total: number;
+  blobCount: number;
+  urlOnlyCount: number;
+};
+
+export async function persistGeneration(input: SaveHistoryInput): Promise<PersistResult> {
   const mime = mimeFromFormat(input.params.output_format);
   const images: StoredImage[] = [];
+  let blobCount = 0;
+  let urlOnlyCount = 0;
+
   for (let i = 0; i < input.results.length; i++) {
     const stored = await resultToStored(input.results[i], mime, i);
-    if (stored) images.push(stored);
+    if (!stored) continue;
+    images.push(stored);
+    if (stored.blob) blobCount++;
+    else urlOnlyCount++;
   }
-  if (!images.length) return 0;
+
+  if (!images.length) {
+    return { saved: 0, total: input.results.length, blobCount: 0, urlOnlyCount: 0 };
+  }
 
   const record: HistoryRecord = {
     id: newId(),
@@ -87,7 +149,12 @@ export async function persistGeneration(input: SaveHistoryInput): Promise<number
     rawResponse: input.rawResponse,
   };
   await saveHistoryRecord(record);
-  return images.length;
+  return { saved: images.length, total: input.results.length, blobCount, urlOnlyCount };
+}
+
+export function storedImageSrc(img: StoredImage): string | undefined {
+  if (img.blob) return blobToObjectUrl(img.blob);
+  return img.remoteUrl;
 }
 
 export function blobToObjectUrl(blob: Blob): string {

@@ -1,5 +1,9 @@
-import { X } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { useCallback, useEffect, useState, type MouseEvent } from "react";
+import {
+  historyHasUrlOnlyAssets,
+  materializeHistoryRecord,
+} from "./historyMaterialize";
 import { blobToObjectUrl } from "./historySave";
 import {
   clearAllHistory,
@@ -69,6 +73,8 @@ export function HistorySidebar({ onRestore }: Props) {
   const [modalUrls, setModalUrls] = useState<string[]>([]);
   const [modalRefUrls, setModalRefUrls] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [materializing, setMaterializing] = useState(false);
+  const [materializeHint, setMaterializeHint] = useState<string | null>(null);
 
   const loadList = useCallback(async () => {
     setLoading(true);
@@ -89,7 +95,36 @@ export function HistorySidebar({ onRestore }: Props) {
   const openModal = async (id: string) => {
     const record = await getHistoryRecord(id);
     if (!record) return;
+    setMaterializeHint(null);
     setModalRecord(record);
+  };
+
+  const handleMaterialize = async () => {
+    if (!modalRecord || materializing) return;
+    setMaterializing(true);
+    setMaterializeHint(null);
+    try {
+      const r = await materializeHistoryRecord(modalRecord);
+      const fresh = await getHistoryRecord(modalRecord.id);
+      if (fresh) setModalRecord(fresh);
+      const parts: string[] = [];
+      if (r.imagesOk || r.imagesFail) {
+        parts.push(`结果图 ${r.imagesOk} 成功${r.imagesFail ? `、${r.imagesFail} 失败` : ""}`);
+      }
+      if (r.refsOk || r.refsFail) {
+        parts.push(`参考图 ${r.refsOk} 成功${r.refsFail ? `、${r.refsFail} 失败` : ""}`);
+      }
+      if (r.imagesOk + r.refsOk === 0) {
+        setMaterializeHint("未能下载（链接可能已过期或禁止跨域）。可改用 Base64 返回后重新生成。");
+      } else {
+        setMaterializeHint(`已缓存到本机 IndexedDB（${parts.join("；")}）`);
+      }
+      await loadList();
+    } catch (e) {
+      setMaterializeHint(e instanceof Error ? e.message : "缓存失败");
+    } finally {
+      setMaterializing(false);
+    }
   };
 
   useEffect(() => {
@@ -186,6 +221,9 @@ export function HistorySidebar({ onRestore }: Props) {
         open={Boolean(modalRecord)}
         onOpenChange={(open) => !open && setModalRecord(null)}
         onRestore={onRestore}
+        onMaterialize={handleMaterialize}
+        materializing={materializing}
+        materializeHint={materializeHint}
         onDelete={async () => {
           if (!modalRecord) return;
           if (!confirm("删除这条记录？")) return;
@@ -311,6 +349,9 @@ function HistoryDetailDialog({
   open,
   onOpenChange,
   onRestore,
+  onMaterialize,
+  materializing,
+  materializeHint,
   onDelete,
 }: {
   record: HistoryRecord | null;
@@ -319,6 +360,9 @@ function HistoryDetailDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onRestore: Props["onRestore"];
+  onMaterialize: () => void;
+  materializing: boolean;
+  materializeHint: string | null;
   onDelete: () => void;
 }) {
   if (!record) return null;
@@ -384,6 +428,31 @@ function HistoryDetailDialog({
             ))}
             </div>
           </div>
+          {record && historyHasUrlOnlyAssets(record) && (
+            <div className="rounded-md border border-amber-200 bg-amber-50/80 px-3 py-2.5 text-xs leading-relaxed text-amber-950">
+              <p>部分图片仅存外链，离线或过期后无法查看。可尝试从 URL 下载并以二进制写入本机（等同 Base64 落库）。</p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mt-2 h-8 border-amber-300 bg-white"
+                disabled={materializing}
+                onClick={onMaterialize}
+              >
+                {materializing ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    下载中…
+                  </>
+                ) : (
+                  "URL 转本地保存"
+                )}
+              </Button>
+            </div>
+          )}
+          {materializeHint && (
+            <p className="text-xs leading-relaxed text-neutral-600">{materializeHint}</p>
+          )}
           <details className="text-xs">
             <summary className="cursor-pointer text-neutral-600">请求参数 JSON</summary>
             <pre className="mt-2 max-h-32 overflow-auto rounded border border-neutral-200 bg-neutral-50 p-2 font-mono text-[10px]">

@@ -20,7 +20,13 @@ import { CheckboxRow } from "./components/CheckboxRow";
 import { Button } from "./components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "./components/ui/tabs";
+import { ImagePreviewDialog } from "./ImagePreviewDialog";
 import { ParamFields } from "./ParamFields";
+import {
+  type ResultDisplaySrc,
+  resultDisplaySrc,
+  revokeResultDisplaySrcs,
+} from "./imageBlob";
 import type { PackReferencesInput } from "./referencePack";
 import type { ApiResponse, EditParams, GenerationParams, ImageResult } from "./types";
 
@@ -38,10 +44,10 @@ const defaultParams = (): GenerationParams => ({
   output_compression: 95,
 });
 
-function imageSrc(item: ImageResult): string | undefined {
-  if (item.url) return item.url;
-  if (item.b64_json) return `data:image/jpeg;base64,${item.b64_json}`;
-  return undefined;
+function downloadExt(fmt: GenerationParams["output_format"]): string {
+  if (fmt === "png") return "png";
+  if (fmt === "webp") return "webp";
+  return "jpg";
 }
 
 export default function App() {
@@ -58,6 +64,8 @@ export default function App() {
   const [rawResponse, setRawResponse] = useState<string>("");
   const [health, setHealth] = useState<HealthInfo | null>(null);
   const [saveHint, setSaveHint] = useState<string | null>(null);
+  const [resultDisplay, setResultDisplay] = useState<ResultDisplaySrc[]>([]);
+  const [preview, setPreview] = useState<{ src: string; index: number } | null>(null);
 
   const refreshHealth = useCallback(() => {
     checkHealth().then(setHealth);
@@ -73,6 +81,14 @@ export default function App() {
       window.removeEventListener("minimax-settings-changed", onSettings);
     };
   }, [refreshHealth]);
+
+  useEffect(() => {
+    const built = results
+      .map((r) => resultDisplaySrc(r, params.output_format))
+      .filter((x): x is ResultDisplaySrc => x !== null);
+    setResultDisplay(built);
+    return () => revokeResultDisplaySrcs(built);
+  }, [results, params.output_format]);
 
   const requestPreview = useMemo(() => {
     if (tab === "generate") {
@@ -403,16 +419,24 @@ export default function App() {
               )}
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {results.map((item, i) => {
-                  const src = imageSrc(item);
-                  if (!src) return null;
+                  const display = resultDisplay[i];
+                  if (!display) return null;
                   return (
                     <figure
-                      key={`${src}-${i}`}
+                      key={`result-${i}-${item.size ?? i}`}
                       className="overflow-hidden rounded-md border border-neutral-200"
                     >
-                      <a href={src} target="_blank" rel="noreferrer" className="block">
-                        <img src={src} alt="" className="aspect-square w-full object-cover" />
-                      </a>
+                      <button
+                        type="button"
+                        className="block w-full cursor-zoom-in text-left"
+                        onClick={() => setPreview({ src: display.src, index: i })}
+                      >
+                        <img
+                          src={display.src}
+                          alt=""
+                          className="aspect-square w-full object-cover"
+                        />
+                      </button>
                       <figcaption className="space-y-0.5 px-2 py-2 text-[11px] text-neutral-500">
                         {item.size && <div>尺寸 {item.size}</div>}
                         {item.revised_prompt && (
@@ -425,6 +449,17 @@ export default function App() {
                   );
                 })}
               </div>
+              <ImagePreviewDialog
+                src={preview?.src ?? null}
+                open={preview !== null}
+                onOpenChange={(open) => !open && setPreview(null)}
+                allowExternalOpen={preview ? !resultDisplay[preview.index]?.objectUrl : false}
+                downloadName={
+                  preview
+                    ? `minimax-${preview.index + 1}.${downloadExt(params.output_format)}`
+                    : undefined
+                }
+              />
               {rawResponse && (
                 <details className="mt-4 text-xs">
                   <summary className="cursor-pointer font-medium text-neutral-700">原始响应</summary>

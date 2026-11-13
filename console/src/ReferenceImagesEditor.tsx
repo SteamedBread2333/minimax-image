@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronUp, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { FormField } from "./components/FormField";
-import { Textarea } from "./components/ui/textarea";
+import { FormField, FormGroup, FormStack, FormTextarea } from "./components/FormField";
+import { FileInput } from "./components/ui/file-input";
 import { cn } from "./lib/utils";
 
 type Props = {
@@ -48,8 +48,8 @@ export function ReferenceImagesEditor({
   };
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs leading-relaxed text-neutral-600">
+    <FormStack className="gap-5">
+      <div className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-xs leading-relaxed text-neutral-600">
         <p className="font-medium text-neutral-800">如何组织参考图</p>
         <ul className="mt-1 list-inside list-disc space-y-0.5">
           <li>
@@ -66,19 +66,19 @@ export function ReferenceImagesEditor({
       </div>
 
       <FormField label="参考图片" hint="1～16 张；顺序与提示词中的「图 N」一致">
-        <input
-          type="file"
+        <div className="flex flex-col gap-3">
+        <FileInput
           accept="image/*"
           multiple
-          onChange={(e) => onPickFiles(e.target.files)}
-          className="block w-full text-sm text-neutral-600 file:mr-3 file:rounded-md file:border file:border-neutral-300 file:bg-white file:px-3 file:py-2 file:text-sm file:font-medium"
+          onFiles={onPickFiles}
+          buttonLabel={files.length ? "继续添加图片" : "选择图片"}
         />
         {files.length > 0 && (
-          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+          <ul className="grid gap-2.5 sm:grid-cols-2">
             {files.map((f, i) => (
               <li
                 key={`${f.name}-${f.size}-${i}`}
-                className="flex gap-2 rounded-md border border-neutral-200 bg-white p-2"
+                className="flex gap-2.5 rounded-md border border-neutral-200 bg-white p-2.5"
               >
                 <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded bg-neutral-100">
                   {previews[i] ? (
@@ -133,26 +133,30 @@ export function ReferenceImagesEditor({
           </ul>
         )}
         {urlLines.length > 0 && files.length === 0 && (
-          <p className="mt-2 text-xs text-neutral-500">
+          <p className="text-xs text-neutral-500">
             已填 {urlLines.length} 个 URL：第 1 行 = 图 1，以此类推。
           </p>
         )}
+        </div>
       </FormField>
 
-      <details className="rounded-md border border-neutral-200 px-3 py-2 text-sm">
-        <summary className="cursor-pointer font-medium">图片网址 / 大文件模式</summary>
-        <div className="mt-3 space-y-3 border-t border-neutral-100 pt-3">
-          <FormField label="图片 URL" hint="每行一个；行序 = 图 1、图 2…（无本地上传时生效）">
-            <Textarea
+      <details className="rounded-md border border-neutral-200 px-4 py-3.5 text-sm">
+        <summary className="cursor-pointer select-none font-medium text-neutral-800">
+          图片网址
+        </summary>
+        <FormGroup className="mt-3 border-t border-neutral-100 pt-4">
+          <FormField label="图片 URL" hint="每行一个；行序 = 图 1、图 2…（接在本地上传之后编号）">
+            <FormTextarea
               value={imageUrls}
               onChange={(e) => onImageUrlsChange(e.target.value)}
               rows={3}
-              className="min-h-[72px] font-mono text-xs"
+              className="min-h-[72px] resize-y font-mono text-xs"
               placeholder={"https://example.com/photo-1.jpg\nhttps://example.com/photo-2.jpg"}
+              spellCheck={false}
             />
           </FormField>
-        </div>
+        </FormGroup>
       </details>
-    </div>
+    </FormStack>
   );
 }

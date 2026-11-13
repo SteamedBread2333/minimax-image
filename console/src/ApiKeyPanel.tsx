@@ -8,16 +8,20 @@ import {
   type ApiRegion,
   type ClientSettings,
 } from "./clientSettings";
-import { FormField } from "./components/FormField";
+import { FormField, FormInput, FormStack } from "./components/FormField";
+import { FormSelect, type SelectOption } from "./components/FormSelect";
 import { Button } from "./components/ui/button";
 import { Card, CardContent } from "./components/ui/card";
-import { Input } from "./components/ui/input";
-import { SelectNative } from "./components/ui/select-native";
 import { cn } from "./lib/utils";
 
 type Props = {
   onSaved?: () => void;
 };
+
+const regionOptions: SelectOption<ApiRegion>[] = [
+  { value: "china", label: "国内", description: "api.minimaxi.com" },
+  { value: "global", label: "国际", description: "api.minimax.io" },
+];
 
 export function ApiKeyPanel({ onSaved }: Props) {
   const [open, setOpen] = useState(false);
@@ -76,26 +80,29 @@ export function ApiKeyPanel({ onSaved }: Props) {
       </button>
 
       {open && (
-        <CardContent className="space-y-4 border-t border-neutral-100 pt-0">
+        <CardContent className="border-t border-neutral-100 pt-4">
+          <FormStack className="gap-5">
           <p className="text-xs leading-relaxed text-neutral-500">
             Key 仅存于本浏览器。国内 Key 选国内，国际 Key 选国际。
           </p>
-          <FormField label="API Key">
-            <Input
+          <FormField label="API Key" hint="以 sk-api- 开头，仅保存在本浏览器。">
+            <FormInput
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               placeholder="sk-api-…"
               autoComplete="off"
+              spellCheck={false}
             />
           </FormField>
-          <FormField label="账号区域">
-            <SelectNative value={region} onChange={(e) => setRegion(e.target.value as ApiRegion)}>
-              <option value="china">国内</option>
-              <option value="global">国际</option>
-            </SelectNative>
+          <FormField label="账号区域" hint="须与 Key 签发区域一致，否则会报无效 Key。">
+            <FormSelect
+              value={region}
+              onValueChange={setRegion}
+              options={regionOptions}
+            />
           </FormField>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2.5 pt-1">
             <Button type="button" onClick={handleSave} className="min-w-[120px]">
               保存
             </Button>
@@ -103,7 +110,8 @@ export function ApiKeyPanel({ onSaved }: Props) {
               清除
             </Button>
           </div>
-          {message && <p className="text-xs text-neutral-600">{message}</p>}
+          {message && <p className="-mt-1 text-xs text-neutral-600">{message}</p>}
+          </FormStack>
         </CardContent>
       )}
     </Card>

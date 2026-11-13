@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2025-11-13",
+    title: "表单与控件",
+    items: [
+      "下拉改用 Radix Select（键盘与焦点一致）",
+      "压缩质量改用 Radix Slider",
+      "文件选择统一为按钮式 FileInput",
+      "FormField 去掉占位空白，Label 与控件 id 关联",
+    ],
+  },
+  {
+    date: "2025-11-13",
     title: "参考图与历史",
     items: [
       "图片编辑：历史记录保存参考图（本地文件 / URL）",

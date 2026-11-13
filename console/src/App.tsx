@@ -11,7 +11,7 @@ import {
   generateImages,
 } from "./api";
 import { ApiKeyPanel } from "./ApiKeyPanel";
-import { ChangelogDialog } from "./ChangelogDialog";
+import { HeaderToolbar } from "./HeaderToolbar";
 import { formatApiError } from "./formatApiError";
 import { HistorySidebar } from "./HistorySidebar";
 import { persistGeneration } from "./historySave";
@@ -21,7 +21,6 @@ import { Button } from "./components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { ParamFields } from "./ParamFields";
-import { cn } from "./lib/utils";
 import type { PackReferencesInput } from "./referencePack";
 import type { ApiResponse, EditParams, GenerationParams, ImageResult } from "./types";
 
@@ -280,50 +279,36 @@ export default function App() {
     }));
   };
 
-  const healthLabel =
-    health === null
-      ? "检测中…"
-      : health.ok
-        ? `${health.regionHint === "china" ? "国内" : health.regionHint === "global" ? "国际" : "自定义"} · 浏览器直连`
-        : "请配置 API Key";
-
   return (
     <div className="min-h-screen bg-white text-neutral-950">
       <div className="mx-auto max-w-[1280px] px-4 py-6 sm:px-6">
-        <header className="mb-6 flex flex-col gap-4 border-b border-neutral-200 pb-6 sm:flex-row sm:items-center sm:justify-between">
+        <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">MiniMax 图片工作台</h1>
-            <p className="mt-1 text-sm text-neutral-500">文生图与图片编辑 · 白底简洁界面</p>
+            <p className="mt-1.5 text-sm text-neutral-500">文生图与图片编辑</p>
           </div>
-          <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
-            <span
-              className={cn(
-                "inline-flex w-fit items-center rounded-md border px-3 py-1.5 text-xs",
-                health?.ok ? "border-neutral-300 text-neutral-700" : "border-neutral-400 text-neutral-900"
-              )}
-            >
-              {healthLabel}
-            </span>
-            <ChangelogDialog />
+          <div className="flex w-full justify-end sm:w-auto">
+            <HeaderToolbar health={health} />
           </div>
         </header>
+        <div className="mb-6 border-b border-neutral-100" aria-hidden />
 
         <ApiKeyPanel onSaved={refreshHealth} />
 
-        <Tabs value={tab} onValueChange={(v) => setTab(v as "generate" | "edit")} className="mb-4">
+        <Tabs value={tab} onValueChange={(v) => setTab(v as "generate" | "edit")} className="mb-6">
           <TabsList>
             <TabsTrigger value="generate">文生图</TabsTrigger>
             <TabsTrigger value="edit">图片编辑</TabsTrigger>
           </TabsList>
         </Tabs>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:items-start">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start lg:gap-5">
           <Card className="min-w-0 lg:col-span-4">
             <CardHeader>
               <CardTitle>{tab === "generate" ? "生成设置" : "编辑设置"}</CardTitle>
               <CardDescription>填写后点击底部「开始生成」</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-5">
+            <CardContent className="flex flex-col gap-6">
               <ParamFields
                 params={params}
                 onChange={setParams}
@@ -331,7 +316,7 @@ export default function App() {
               />
 
               {tab === "edit" && (
-                <div className="space-y-4 border-t border-neutral-100 pt-4">
+                <div className="flex flex-col gap-5 border-t border-neutral-100 pt-5">
                   <ReferenceImagesEditor
                     files={editExtra.files}
                     imageUrls={editExtra.imageUrls}
@@ -348,7 +333,7 @@ export default function App() {
                 </div>
               )}
 
-              <div className="flex flex-col gap-2 border-t border-neutral-100 pt-4 sm:flex-row">
+              <div className="flex flex-col gap-2.5 border-t border-neutral-100 pt-5 sm:flex-row">
                 <Button
                   type="button"
                   className="h-11 flex-1 sm:min-w-[140px]"
@@ -383,8 +368,10 @@ export default function App() {
               </div>
 
               <details className="text-xs text-neutral-500">
-                <summary className="cursor-pointer font-medium text-neutral-700">请求 JSON</summary>
-                <pre className="mt-2 max-h-40 overflow-auto rounded border border-neutral-200 bg-neutral-50 p-2 font-mono text-[11px] leading-relaxed">
+                <summary className="cursor-pointer select-none py-0.5 font-medium text-neutral-700">
+                  请求 JSON
+                </summary>
+                <pre className="mt-2.5 max-h-40 overflow-auto rounded-md border border-neutral-200 bg-neutral-50 p-3 font-mono text-[11px] leading-relaxed">
                   {requestPreview}
                 </pre>
               </details>

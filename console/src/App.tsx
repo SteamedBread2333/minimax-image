@@ -11,6 +11,7 @@ import {
   generateImages,
 } from "./api";
 import { ApiKeyPanel } from "./ApiKeyPanel";
+import { ChangelogDialog } from "./ChangelogDialog";
 import { formatApiError } from "./formatApiError";
 import { HistorySidebar } from "./HistorySidebar";
 import { persistGeneration } from "./historySave";
@@ -289,19 +290,22 @@ export default function App() {
   return (
     <div className="min-h-screen bg-white text-neutral-950">
       <div className="mx-auto max-w-[1280px] px-4 py-6 sm:px-6">
-        <header className="mb-6 flex flex-col gap-4 border-b border-neutral-200 pb-6 sm:flex-row sm:items-end sm:justify-between">
+        <header className="mb-6 flex flex-col gap-4 border-b border-neutral-200 pb-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">MiniMax 图片工作台</h1>
             <p className="mt-1 text-sm text-neutral-500">文生图与图片编辑 · 白底简洁界面</p>
           </div>
-          <span
-            className={cn(
-              "inline-flex w-fit items-center rounded-md border px-3 py-1.5 text-xs",
-              health?.ok ? "border-neutral-300 text-neutral-700" : "border-neutral-400 text-neutral-900"
-            )}
-          >
-            {healthLabel}
-          </span>
+          <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
+            <span
+              className={cn(
+                "inline-flex w-fit items-center rounded-md border px-3 py-1.5 text-xs",
+                health?.ok ? "border-neutral-300 text-neutral-700" : "border-neutral-400 text-neutral-900"
+              )}
+            >
+              {healthLabel}
+            </span>
+            <ChangelogDialog />
+          </div>
         </header>
 
         <ApiKeyPanel onSaved={refreshHealth} />

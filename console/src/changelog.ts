@@ -1,0 +1,29 @@
+export type ChangelogEntry = {
+  date: string;
+  title: string;
+  items: string[];
+};
+
+/** 页面「更新记录」弹框内容（按时间倒序） */
+export const CHANGELOG: ChangelogEntry[] = [
+  {
+    date: "2025-11-13",
+    title: "参考图与历史",
+    items: [
+      "图片编辑：历史记录保存参考图（本地文件 / URL）",
+      "历史详情分开展示「参考图」与「生成结果」",
+      "参考图支持编号排序（图 1、图 2）与使用说明",
+      "可从历史恢复参数与参考图到表单",
+    ],
+  },
+  {
+    date: "2025-11-13",
+    title: "纯前端工作台",
+    items: [
+      "浏览器直连 MiniMax H3 Image API（文生图 / 编辑）",
+      "API Key、国内与国际接口在本机配置",
+      "生成结果与历史写入 IndexedDB",
+      "简体中文参数面板与 GitHub Pages 部署",
+    ],
+  },
+];
